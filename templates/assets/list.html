@@ -1,16 +1,28 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
-    <h1 class="h2">Data Aset</h1>
-    <a href="/api/assets/add" class="btn btn-primary btn-sm">+ Tambah Aset Baru</a>
+<!-- Overlay Loading Spinner -->
+<div id="loadingOverlay" class="d-none position-fixed w-100 h-100 top-0 start-0 bg-dark bg-opacity-50" style="z-index: 9999; display: flex; justify-content: center; align-items: center;">
+    <div class="spinner-border text-light" role="status" style="width: 3rem; height: 3rem;">
+        <span class="visually-hidden">Loading...</span>
+    </div>
 </div>
 
-<!-- Meniru gaya tabel di dalam Card dari tema Velzon -->
-<div class="card">
+<!-- Banner Hijau ala TaskMaster -->
+<div class="p-4 mb-4 rounded-4 shadow-sm" style="background-color: #6a9c72; color: white;">
+    <h3 class="fw-bold mb-2">Halo, Selamat Datang! 👋</h3>
+    <p class="mb-3">Kelola Daftar Aset Pintar Anda. Pantau ketersediaan perangkat operasional, status peminjaman, dan riwayat aset secara akurat.</p>
+    <button class="btn btn-light text-success fw-bold" onclick="openAddModal()">
+        + Tambah Aset Baru
+    </button>
+</div>
+
+<!-- Tabel Data Aset -->
+<div class="card border-0 shadow-sm rounded-4">
     <div class="card-body">
+        <h5 class="card-title fw-bold mb-3">Kelola Aset Hari Ini</h5>
         <div class="table-responsive">
-            <table class="table table-hover table-nowrap align-middle">
+            <table class="table table-hover align-middle">
                 <thead class="table-light">
                     <tr>
                         <th>ID</th>
@@ -18,34 +30,148 @@
                         <th>Kategori</th>
                         <th>Status</th>
                         <th>Lokasi</th>
+                        <th>Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for asset in assets %}
                     <tr>
                         <td>{{ asset.id }}</td>
-                        <td class="fw-medium">{{ asset.nama_aset }}</td>
+                        <td class="fw-bold">{{ asset.nama_aset }}</td>
                         <td>{{ asset.kategori }}</td>
                         <td>
-                            <!-- Pewarnaan badge status -->
-                            {% if asset.status == 'Tersedia' %}
-                                <span class="badge bg-success">Tersedia</span>
-                            {% elif asset.status == 'Rusak' %}
-                                <span class="badge bg-danger">Rusak</span>
-                            {% else %}
-                                <span class="badge bg-warning text-dark">{{ asset.status }}</span>
-                            {% endif %}
+                            {% if asset.status == 'Tersedia' %}<span class="badge bg-success">Tersedia</span>
+                            {% elif asset.status == 'Rusak' %}<span class="badge bg-danger">Rusak</span>
+                            {% else %}<span class="badge bg-warning text-dark">{{ asset.status }}</span>{% endif %}
                         </td>
                         <td>{{ asset.lokasi }}</td>
+                        <td>
+                            <!-- Tombol Edit & Delete -->
+                            <button class="btn btn-sm btn-outline-primary" onclick="openEditModal({{ asset.id }}, '{{ asset.nama_aset }}', '{{ asset.kategori }}', '{{ asset.status }}', '{{ asset.lokasi }}')">Edit</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteAsset({{ asset.id }})">Hapus</button>
+                        </td>
                     </tr>
                     {% else %}
-                    <tr>
-                        <td colspan="5" class="text-center text-muted py-4">Belum ada data aset.</td>
-                    </tr>
+                    <tr><td colspan="6" class="text-center py-3">Belum ada data aset.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+
+<!-- Modal Form Aset -->
+<div class="modal fade" id="assetModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalTitle">Tambah Aset</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="assetForm">
+            <input type="hidden" id="assetId">
+            <div class="mb-3">
+                <label class="form-label">Nama Aset</label>
+                <input type="text" class="form-control" id="nama_aset" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Kategori</label>
+                <input type="text" class="form-control" id="kategori">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Status Aset</label>
+                <select class="form-select" id="status">
+                    <option value="Tersedia">Tersedia</option>
+                    <option value="Dipinjam">Dipinjam</option>
+                    <option value="Rusak">Rusak</option>
+                    <option value="Maintenance">Maintenance</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Lokasi</label>
+                <input type="text" class="form-control" id="lokasi">
+            </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+        <button type="button" class="btn btn-success" onclick="saveAsset()">Simpan Data</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Script Asynchronous (AJAX) -->
+<script>
+    const modal = new bootstrap.Modal(document.getElementById('assetModal'));
+    const form = document.getElementById('assetForm');
+    
+    function toggleLoading(show) {
+        const overlay = document.getElementById('loadingOverlay');
+        if(show) { overlay.classList.remove('d-none'); overlay.classList.add('d-flex'); } 
+        else { overlay.classList.remove('d-flex'); overlay.classList.add('d-none'); }
+    }
+
+    function openAddModal() {
+        form.reset();
+        document.getElementById('assetId').value = '';
+        document.getElementById('modalTitle').innerText = 'Tambah Aset Baru';
+        modal.show();
+    }
+
+    function openEditModal(id, nama, kategori, status, lokasi) {
+        document.getElementById('assetId').value = id;
+        document.getElementById('nama_aset').value = nama;
+        document.getElementById('kategori').value = kategori;
+        document.getElementById('status').value = status;
+        document.getElementById('lokasi').value = lokasi;
+        document.getElementById('modalTitle').innerText = 'Edit Data Aset';
+        modal.show();
+    }
+
+    async function saveAsset() {
+        const id = document.getElementById('assetId').value;
+        const payload = {
+            nama_aset: document.getElementById('nama_aset').value,
+            kategori: document.getElementById('kategori').value,
+            status: document.getElementById('status').value,
+            lokasi: document.getElementById('lokasi').value
+        };
+
+        const url = id ? `/api/assets/edit/${id}` : '/api/assets/add';
+        
+        modal.hide();
+        toggleLoading(true);
+
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if(data.status === 'success') { location.reload(); } 
+            else { alert('Gagal: ' + data.message); toggleLoading(false); }
+        } catch (error) {
+            alert('Terjadi kesalahan jaringan.');
+            toggleLoading(false);
+        }
+    }
+
+    async function deleteAsset(id) {
+        if(confirm('Apakah Anda yakin ingin menghapus aset ini?')) {
+            toggleLoading(true);
+            try {
+                const res = await fetch(`/api/assets/delete/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if(data.status === 'success') { location.reload(); } 
+                else { alert('Gagal: ' + data.message); toggleLoading(false); }
+            } catch (error) {
+                alert('Terjadi kesalahan jaringan.');
+                toggleLoading(false);
+            }
+        }
+    }
+</script>
 {% endblock %}
