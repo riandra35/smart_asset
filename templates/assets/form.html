@@ -1,1 +1,39 @@
+{% extends "base.html" %}
 
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">Tambah Aset Baru</h1>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST" action="/api/assets/add">
+            <div class="mb-3">
+                <label for="nama_aset" class="form-label">Nama Aset</label>
+                <input type="text" class="form-control" id="nama_aset" name="nama_aset" required>
+            </div>
+            <div class="mb-3">
+                <label for="kategori" class="form-label">Kategori</label>
+                <input type="text" class="form-control" id="kategori" name="kategori" placeholder="Misal: Elektronik, Kendaraan, Furniture">
+            </div>
+            <div class="mb-3">
+                <label for="status" class="form-label">Status Aset</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="Tersedia" selected>Tersedia</option>
+                    <option value="Dipinjam">Dipinjam</option>
+                    <option value="Rusak">Rusak</option>
+                    <option value="Maintenance">Maintenance</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="lokasi" class="form-label">Lokasi/Ruangan</label>
+                <input type="text" class="form-control" id="lokasi" name="lokasi">
+            </div>
+            <div class="d-flex justify-content-end gap-2">
+                <a href="/api/assets" class="btn btn-light">Batal</a>
+                <button type="submit" class="btn btn-primary">Simpan Aset</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
