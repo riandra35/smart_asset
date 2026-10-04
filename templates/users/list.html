@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Overlay Loading Spinner -->
+<div id="loadingOverlay" class="d-none position-fixed w-100 h-100 top-0 start-0 bg-dark bg-opacity-50" style="z-index: 9999; display: flex; justify-content: center; align-items: center;">
+    <div class="spinner-border text-light" role="status" style="width: 3rem; height: 3rem;">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+
+<!-- Banner Hijau ala TaskMaster -->
+<div class="p-4 mb-4 rounded-4 shadow-sm" style="background-color: #6a9c72; color: white;">
+    <h3 class="fw-bold mb-2">Manajemen Pengguna 👥</h3>
+    <p class="mb-3">Kelola akses staf dan administrator sistem. Anda dapat menambah, mengubah hak akses, atau mencabut keanggotaan pengguna.</p>
+    <button class="btn btn-light text-success fw-bold" onclick="openAddModal()">
+        + Tambah Pengguna Baru
+    </button>
+</div>
+
+<!-- Tabel Data Pengguna -->
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body">
+        <h5 class="card-title fw-bold mb-3">Daftar Pengguna Sistem</h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Nama Lengkap</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Bergabung</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td class="fw-bold">{{ user.nama_lengkap }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            {% if user.role == 'Admin' %}<span class="badge bg-danger">Admin</span>
+                            {% elif user.role == 'Manager' %}<span class="badge bg-primary">Manager</span>
+                            {% else %}<span class="badge bg-secondary">{{ user.role }}</span>{% endif %}
+                        </td>
+                        <!-- Memotong string timestamp UTC panjang menjadi format tanggal standar -->
+                        <td>{{ user.created_at[:10] if user.created_at else '-' }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="openEditModal({{ user.id }}, '{{ user.nama_lengkap }}', '{{ user.email }}', '{{ user.role }}')">Edit</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteUser({{ user.id }})">Hapus</button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" class="text-center py-3">Belum ada data pengguna terdaftar.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Form Pengguna -->
+<div class="modal fade" id="userModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalTitle">Tambah Pengguna</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="userForm">
+            <input type="hidden" id="userId">
+            <div class="mb-3">
+                <label class="form-label">Nama Lengkap</label>
+                <input type="text" class="form-control" id="nama_lengkap" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Alamat Email</label>
+                <input type="email" class="form-control" id="email" required>
+                <div class="form-text">Gunakan email yang valid dan belum terdaftar.</div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Hak Akses (Role)</label>
+                <select class="form-select" id="role">
+                    <option value="Staff">Staff</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Admin">Admin</option>
+                </select>
+            </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+        <button type="button" class="btn btn-success" onclick="saveUser()">Simpan Data</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    function getModal() {
+        return bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal'));
+    }
+    
+    function toggleLoading(show) {
+        const overlay = document.getElementById('loadingOverlay');
+        if(show) { overlay.classList.remove('d-none'); overlay.classList.add('d-flex'); } 
+        else { overlay.classList.remove('d-flex'); overlay.classList.add('d-none'); }
+    }
+
+    function openAddModal() {
+        document.getElementById('userForm').reset();
+        document.getElementById('userId').value = '';
+        document.getElementById('email').disabled = false; // Izinkan edit email untuk pengguna baru
+        document.getElementById('modalTitle').innerText = 'Tambah Pengguna Baru';
+        getModal().show();
+    }
+
+    function openEditModal(id, nama, email, role) {
+        document.getElementById('userId').value = id;
+        document.getElementById('nama_lengkap').value = nama;
+        document.getElementById('email').value = email;
+        document.getElementById('role').value = role;
+        document.getElementById('modalTitle').innerText = 'Edit Data Pengguna';
+        getModal().show();
+    }
+
+    async function saveUser() {
+        const id = document.getElementById('userId').value;
+        const payload = {
+            nama_lengkap: document.getElementById('nama_lengkap').value,
+            email: document.getElementById('email').value,
+            role: document.getElementById('role').value
+        };
+
+        const url = id ? `/api/users/edit/${id}` : '/api/users/add';
+        
+        getModal().hide();
+        toggleLoading(true);
+
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if(data.status === 'success') { location.reload(); } 
+            else { alert('Gagal: ' + data.message); toggleLoading(false); }
+        } catch (error) {
+            alert('Terjadi kesalahan jaringan.');
+            toggleLoading(false);
+        }
+    }
+
+    async function deleteUser(id) {
+        if(confirm('Awas: Apakah Anda yakin ingin mencabut dan menghapus pengguna ini?')) {
+            toggleLoading(true);
+            try {
+                const res = await fetch(`/api/users/delete/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if(data.status === 'success') { location.reload(); } 
+                else { alert('Gagal: ' + data.message); toggleLoading(false); }
+            } catch (error) {
+                alert('Terjadi kesalahan jaringan.');
+                toggleLoading(false);
+            }
+        }
+    }
+</script>
+{% endblock %}
