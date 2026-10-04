@@ -1,1 +1,51 @@
+{% extends "base.html" %}
 
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">Data Aset</h1>
+    <a href="/api/assets/add" class="btn btn-primary btn-sm">+ Tambah Aset Baru</a>
+</div>
+
+<!-- Meniru gaya tabel di dalam Card dari tema Velzon -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-nowrap align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Nama Aset</th>
+                        <th>Kategori</th>
+                        <th>Status</th>
+                        <th>Lokasi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for asset in assets %}
+                    <tr>
+                        <td>{{ asset.id }}</td>
+                        <td class="fw-medium">{{ asset.nama_aset }}</td>
+                        <td>{{ asset.kategori }}</td>
+                        <td>
+                            <!-- Pewarnaan badge status -->
+                            {% if asset.status == 'Tersedia' %}
+                                <span class="badge bg-success">Tersedia</span>
+                            {% elif asset.status == 'Rusak' %}
+                                <span class="badge bg-danger">Rusak</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">{{ asset.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ asset.lokasi }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">Belum ada data aset.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
