@@ -1,42 +1,54 @@
-from flask import Blueprint, render_template, request, redirect, url_for
-from db_config import supabase  # Mengambil koneksi Supabase dari file Step 2
+from flask import Blueprint, render_template, request, jsonify
+from db_config import supabase
 
-# Menginisialisasi Blueprint untuk fitur aset
 asset_bp = Blueprint('asset', __name__)
 
-# Rute DML SELECT: Mengambil dan menampilkan semua daftar aset
+# Tampilan Halaman Utama Aset
 @asset_bp.route('/assets', methods=['GET'])
 def list_assets():
     try:
-        # Eksekusi DML SELECT via supabase client[cite: 1]
-        response = supabase.table('assets').select('*').execute()
+        response = supabase.table('assets').select('*').order('id').execute()
         assets_data = response.data
     except Exception as e:
         assets_data = []
-        print(f"Error fetching data: {e}")
-        
-    # Mengirim data aset ke template HTML
+        print(f"Error: {e}")
     return render_template('assets/list.html', assets=assets_data)
 
-@asset_bp.route('/assets/add', methods=['GET', 'POST'])
+# API Tambah Data (Asynchronous)
+@asset_bp.route('/assets/add', methods=['POST'])
 def add_asset():
-    if request.method == 'POST':
-        nama_aset = request.form.get('nama_aset')
-        kategori = request.form.get('kategori')
-        status = request.form.get('status', 'Tersedia')
-        lokasi = request.form.get('lokasi')
+    data = request.json # Menerima JSON dari Fetch API
+    try:
+        supabase.table('assets').insert({
+            "nama_aset": data.get('nama_aset'),
+            "kategori": data.get('kategori'),
+            "status": data.get('status', 'Tersedia'),
+            "lokasi": data.get('lokasi')
+        }).execute()
+        return jsonify({"status": "success", "message": "Data berhasil ditambahkan!"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
-        try:
-            # Eksekusi DML INSERT ke Supabase
-            supabase.table('assets').insert({
-                "nama_aset": nama_aset,
-                "kategori": kategori,
-                "status": status,
-                "lokasi": lokasi
-            }).execute()
-            return redirect(url_for('asset.list_assets'))
-        except Exception as e:
-            # Menampilkan detail error asli dari Supabase/Flask ke layar browser
-            return f"<h1>Gagal menyimpan data!</h1><p>Pesan Error: {str(e)}</p>", 500
+# API Edit Data (DML UPDATE)[cite: 3, 4]
+@asset_bp.route('/assets/edit/<int:id>', methods=['POST'])
+def edit_asset(id):
+    data = request.json
+    try:
+        supabase.table('assets').update({
+            "nama_aset": data.get('nama_aset'),
+            "kategori": data.get('kategori'),
+            "status": data.get('status'),
+            "lokasi": data.get('lokasi')
+        }).eq('id', id).execute()
+        return jsonify({"status": "success", "message": "Data berhasil diperbarui!"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
-    return render_template('assets/form.html')
+# API Hapus Data (DML DELETE)[cite: 3, 4]
+@asset_bp.route('/assets/delete/<int:id>', methods=['DELETE'])
+def delete_asset(id):
+    try:
+        supabase.table('assets').delete().eq('id', id).execute()
+        return jsonify({"status": "success", "message": "Data berhasil dihapus!"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
