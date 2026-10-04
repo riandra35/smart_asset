@@ -1,45 +1,54 @@
-from flask import Blueprint, render_template, request, redirect, url_for
-from db_config import supabase  # Mengimpor modul koneksi Supabase
+from flask import Blueprint, render_template, request, jsonify
+from db_config import supabase
 
-# Menginisialisasi Blueprint untuk fitur pengelolaan user (pegawai)
+# Inisialisasi Blueprint untuk modul pengguna
 user_bp = Blueprint('user', __name__)
 
-# Rute DML SELECT: Mengambil dan menampilkan semua data pengguna
 @user_bp.route('/users', methods=['GET'])
 def list_users():
     try:
-        # Menarik data dari tabel 'users' di Supabase
-        response = supabase.table('users').select('*').execute()
+        # Menjalankan DML SELECT untuk mengambil data pengguna[cite: 2]
+        response = supabase.table('users').select('*').order('id').execute()
         users_data = response.data
     except Exception as e:
         users_data = []
-        print(f"Error fetching user data: {e}")
-        
-    # Mengirim data pengguna ke template HTML (yang nantinya akan Anda buat)
+        print(f"Error: {e}")
     return render_template('users/list.html', users=users_data)
 
-# Rute DML INSERT: Menangani form penambahan pengguna baru
-@user_bp.route('/users/add', methods=['GET', 'POST'])
+@user_bp.route('/api/users/add', methods=['POST'])
 def add_user():
-    if request.method == 'POST':
-        # Mengambil input dari formulir HTML pengguna
-        nama_lengkap = request.form.get('nama_lengkap')
-        email = request.form.get('email')
-        role = request.form.get('role', 'Staff')  # Default 'Staff' jika kosong
+    data = request.json
+    try:
+        # Menjalankan DML INSERT untuk data pengguna baru[cite: 2]
+        supabase.table('users').insert({
+            "nama_lengkap": data.get('nama_lengkap'),
+            "email": data.get('email'),
+            "role": data.get('role', 'Staff')
+        }).execute()
+        return jsonify({"status": "success", "message": "Pengguna berhasil ditambahkan!"})
+    except Exception as e:
+        # Menangani error, termasuk pelanggaran constraint unique pada email
+        return jsonify({"status": "error", "message": str(e)}), 500
 
-        # Eksekusi DML INSERT ke Supabase
-        try:
-            supabase.table('users').insert({
-                "nama_lengkap": nama_lengkap,
-                "email": email,
-                "role": role
-            }).execute()
-        except Exception as e:
-            print(f"Error inserting user: {e}")
-            # Anda bisa menambahkan logika notifikasi/flash di sini jika email sudah ada
+@user_bp.route('/api/users/edit/<int:id>', methods=['POST'])
+def edit_user(id):
+    data = request.json
+    try:
+        # Menjalankan DML UPDATE untuk merubah data pengguna[cite: 2]
+        supabase.table('users').update({
+            "nama_lengkap": data.get('nama_lengkap'),
+            "email": data.get('email'),
+            "role": data.get('role')
+        }).eq('id', id).execute()
+        return jsonify({"status": "success", "message": "Data pengguna diperbarui!"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
-        # Setelah berhasil, arahkan kembali ke daftar pengguna
-        return redirect(url_for('user.list_users'))
-
-    # Jika request GET, tampilkan form input kosong (template yang nantinya dibuat)
-    return render_template('users/form.html')
+@user_bp.route('/api/users/delete/<int:id>', methods=['DELETE'])
+def delete_user(id):
+    try:
+        # Menjalankan DML DELETE untuk menghapus data pengguna[cite: 2]
+        supabase.table('users').delete().eq('id', id).execute()
+        return jsonify({"status": "success", "message": "Pengguna berhasil dihapus!"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
