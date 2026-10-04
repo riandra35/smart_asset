@@ -28,6 +28,7 @@
                         <th>ID</th>
                         <th>Nama Aset</th>
                         <th>Kategori</th>
+                        <th>Tahun</th>
                         <th>Status</th>
                         <th>Lokasi</th>
                         <th>Aksi</th>
@@ -39,6 +40,7 @@
                         <td>{{ asset.id }}</td>
                         <td class="fw-bold">{{ asset.nama_aset }}</td>
                         <td>{{ asset.kategori }}</td>
+                        <td>{{ asset.thn_pengadaan if asset.thn_pengadaan else '-' }}</td>
                         <td>
                             {% if asset.status == 'Tersedia' %}<span class="badge bg-success">Tersedia</span>
                             {% elif asset.status == 'Rusak' %}<span class="badge bg-danger">Rusak</span>
@@ -46,13 +48,13 @@
                         </td>
                         <td>{{ asset.lokasi }}</td>
                         <td>
-                            <!-- Tombol Edit & Delete -->
-                            <button class="btn btn-sm btn-outline-primary" onclick="openEditModal({{ asset.id }}, '{{ asset.nama_aset }}', '{{ asset.kategori }}', '{{ asset.status }}', '{{ asset.lokasi }}')">Edit</button>
+                            <!-- Perhatikan penambahan parameter thn_pengadaan di fungsi ini -->
+                            <button class="btn btn-sm btn-outline-primary" onclick="openEditModal({{ asset.id }}, '{{ asset.nama_aset }}', '{{ asset.kategori }}', '{{ asset.status }}', '{{ asset.lokasi }}', '{{ asset.thn_pengadaan or '' }}')">Edit</button>
                             <button class="btn btn-sm btn-outline-danger" onclick="deleteAsset({{ asset.id }})">Hapus</button>
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="6" class="text-center py-3">Belum ada data aset.</td></tr>
+                    <tr><td colspan="7" class="text-center py-3">Belum ada data aset.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -80,6 +82,10 @@
                 <input type="text" class="form-control" id="kategori">
             </div>
             <div class="mb-3">
+                <label class="form-label">Tahun Pengadaan</label>
+                <input type="date" class="form-control" id="thn_pengadaan">
+            </div>
+            <div class="mb-3">
                 <label class="form-label">Status Aset</label>
                 <select class="form-select" id="status">
                     <option value="Tersedia">Tersedia</option>
@@ -102,10 +108,11 @@
   </div>
 </div>
 
-<!-- Script Asynchronous (AJAX) -->
 <script>
-    const modal = new bootstrap.Modal(document.getElementById('assetModal'));
-    const form = document.getElementById('assetForm');
+    // Memanggil instance Modal secara dinamis untuk menghindari error inisialisasi dini
+    function getModal() {
+        return bootstrap.Modal.getOrCreateInstance(document.getElementById('assetModal'));
+    }
     
     function toggleLoading(show) {
         const overlay = document.getElementById('loadingOverlay');
@@ -114,20 +121,21 @@
     }
 
     function openAddModal() {
-        form.reset();
+        document.getElementById('assetForm').reset();
         document.getElementById('assetId').value = '';
         document.getElementById('modalTitle').innerText = 'Tambah Aset Baru';
-        modal.show();
+        getModal().show();
     }
 
-    function openEditModal(id, nama, kategori, status, lokasi) {
+    function openEditModal(id, nama, kategori, status, lokasi, thn) {
         document.getElementById('assetId').value = id;
         document.getElementById('nama_aset').value = nama;
         document.getElementById('kategori').value = kategori;
         document.getElementById('status').value = status;
         document.getElementById('lokasi').value = lokasi;
+        document.getElementById('thn_pengadaan').value = thn;
         document.getElementById('modalTitle').innerText = 'Edit Data Aset';
-        modal.show();
+        getModal().show();
     }
 
     async function saveAsset() {
@@ -136,12 +144,13 @@
             nama_aset: document.getElementById('nama_aset').value,
             kategori: document.getElementById('kategori').value,
             status: document.getElementById('status').value,
-            lokasi: document.getElementById('lokasi').value
+            lokasi: document.getElementById('lokasi').value,
+            thn_pengadaan: document.getElementById('thn_pengadaan').value
         };
 
         const url = id ? `/api/assets/edit/${id}` : '/api/assets/add';
         
-        modal.hide();
+        getModal().hide();
         toggleLoading(true);
 
         try {
